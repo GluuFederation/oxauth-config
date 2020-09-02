@@ -8,6 +8,7 @@ import java.util.List;
 
 import javax.inject.Inject;
 import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
@@ -37,6 +38,10 @@ import org.slf4j.Logger;
 @Produces(MediaType.APPLICATION_JSON)
 public class OIDSectorResource extends BaseResource {
 
+	/**
+	 * 
+	 */
+	private static final String SECTOR_IDENTIFIER = "sector identifier";
 	@Inject
 	SectorIdentifierService sectorIdentifierService;
 	@Inject
@@ -46,95 +51,59 @@ public class OIDSectorResource extends BaseResource {
 	@ProtectedApi(scopes = { READ_ACCESS })
 	public Response getSectorIdentifiers(@DefaultValue("50") @QueryParam(value = ApiConstants.LIMIT) int limit,
 			@DefaultValue("") @QueryParam(value = ApiConstants.PATTERN) String pattern) {
-		try {
-			List<OxAuthSectorIdentifier> sectors = new ArrayList<OxAuthSectorIdentifier>();
-			if (!pattern.isEmpty()) {
-				sectors = sectorIdentifierService.searchSectorIdentifiers(pattern, limit);
-			} else {
-				sectors = sectorIdentifierService.getAllSectorIdentifiers();
-			}
-			return Response.ok().entity(sectors).build();
-		} catch (Exception e) {
-			return getInternalServerError(e);
+		List<OxAuthSectorIdentifier> sectors = new ArrayList<OxAuthSectorIdentifier>();
+		if (!pattern.isEmpty()) {
+			sectors = sectorIdentifierService.searchSectorIdentifiers(pattern, limit);
+		} else {
+			sectors = sectorIdentifierService.getAllSectorIdentifiers();
 		}
+		return Response.ok().entity(sectors).build();
 	}
 
 	@GET
 	@ProtectedApi(scopes = { READ_ACCESS })
 	@Path(ApiConstants.INUM_PATH)
-	public Response getSectorByInum(@PathParam(ApiConstants.INUM) String inum) {
-		try {
-			OxAuthSectorIdentifier sectorIdentifier = sectorIdentifierService.getSectorIdentifierById(inum);
-			if (inum == null || sectorIdentifier == null) {
-				return getResourceNotFoundError();
-			}
-			return Response.ok().entity(sectorIdentifier).build();
-		} catch (Exception e) {
-			logger.error("Failed to fetch  OpenId Client Connect" + inum, e);
-			return getInternalServerError(e);
-		}
+	public Response getSectorByInum(@PathParam(ApiConstants.INUM) @NotNull String inum) {
+		OxAuthSectorIdentifier sectorIdentifier = sectorIdentifierService.getSectorIdentifierById(inum);
+		checkResourceNotNull(sectorIdentifier, SECTOR_IDENTIFIER);
+		return Response.ok().entity(sectorIdentifier).build();
 	}
 
 	@POST
 	@ProtectedApi(scopes = { WRITE_ACCESS })
 	public Response createNewOpenIDSector(@Valid OxAuthSectorIdentifier sectorIdentifier) {
-		try {
-			if (sectorIdentifier.getDescription() == null) {
-				return getMissingAttributeError(AttributeNames.DESCRIPTION);
-			}
-			String oxId = sectorIdentifierService.generateIdForNewSectorIdentifier();
-			sectorIdentifier.setId(oxId);
-			sectorIdentifier.setBaseDn(sectorIdentifierService.getDnForSectorIdentifier(oxId));
-			sectorIdentifierService.addSectorIdentifier(sectorIdentifier);
-			OxAuthSectorIdentifier result = sectorIdentifierService.getSectorIdentifierById(oxId);
-			return Response.status(Response.Status.CREATED).entity(result).build();
-		} catch (Exception e) {
-			logger.error("Error encounter while saving the openid connect sector.", e);
-			return getInternalServerError(e);
-		}
+		checkNotNull(sectorIdentifier.getDescription(), AttributeNames.DESCRIPTION);
+		String oxId = sectorIdentifierService.generateIdForNewSectorIdentifier();
+		sectorIdentifier.setId(oxId);
+		sectorIdentifier.setBaseDn(sectorIdentifierService.getDnForSectorIdentifier(oxId));
+		sectorIdentifierService.addSectorIdentifier(sectorIdentifier);
+		OxAuthSectorIdentifier result = sectorIdentifierService.getSectorIdentifierById(oxId);
+		return Response.status(Response.Status.CREATED).entity(result).build();
 	}
 
 	@PUT
 	@ProtectedApi(scopes = { WRITE_ACCESS })
 	public Response updateSector(@Valid OxAuthSectorIdentifier sectorIdentifier) {
-		try {
-			String inum = sectorIdentifier.getId();
-			if (inum == null) {
-				return getMissingAttributeError(AttributeNames.INUM);
-			}
-			if (sectorIdentifier.getDescription() == null) {
-				return getMissingAttributeError(AttributeNames.DESCRIPTION);
-			}
-			OxAuthSectorIdentifier existingSector = sectorIdentifierService.getSectorIdentifierById(inum);
-			if (existingSector != null) {
-				sectorIdentifier.setId(existingSector.getId());
-				sectorIdentifier.setBaseDn(sectorIdentifierService.getDnForSectorIdentifier(inum));
-				sectorIdentifierService.updateSectorIdentifier(sectorIdentifier);
-				OxAuthSectorIdentifier result = sectorIdentifierService.getSectorIdentifierById(existingSector.getId());
-				return Response.ok(result).build();
-			} else {
-				return getResourceNotFoundError();
-			}
-		} catch (Exception ex) {
-			logger.error("Failed to update OpenId Connect client", ex);
-			return getInternalServerError(ex);
-		}
+		String inum = sectorIdentifier.getId();
+		checkNotNull(inum, AttributeNames.INUM);
+		checkNotNull(sectorIdentifier.getDescription(), AttributeNames.DESCRIPTION);
+		OxAuthSectorIdentifier existingSector = sectorIdentifierService.getSectorIdentifierById(inum);
+		checkResourceNotNull(existingSector, SECTOR_IDENTIFIER);
+		sectorIdentifier.setId(existingSector.getId());
+		sectorIdentifier.setBaseDn(sectorIdentifierService.getDnForSectorIdentifier(inum));
+		sectorIdentifierService.updateSectorIdentifier(sectorIdentifier);
+		OxAuthSectorIdentifier result = sectorIdentifierService.getSectorIdentifierById(existingSector.getId());
+		return Response.ok(result).build();
 	}
 
 	@DELETE
 	@Path(ApiConstants.INUM_PATH)
 	@ProtectedApi(scopes = { WRITE_ACCESS })
-	public Response deleteSector(@PathParam(ApiConstants.INUM) String inum) {
-		try {
-			OxAuthSectorIdentifier sectorIdentifier = sectorIdentifierService.getSectorIdentifierById(inum);
-			if (inum == null || sectorIdentifier == null) {
-				return getResourceNotFoundError();
-			}
-			sectorIdentifierService.removeSectorIdentifier(sectorIdentifier);
-			return Response.noContent().build();
-		} catch (Exception e) {
-			return getInternalServerError(e);
-		}
+	public Response deleteSector(@PathParam(ApiConstants.INUM) @NotNull String inum) {
+		OxAuthSectorIdentifier sectorIdentifier = sectorIdentifierService.getSectorIdentifierById(inum);
+		checkResourceNotNull(sectorIdentifier, SECTOR_IDENTIFIER);
+		sectorIdentifierService.removeSectorIdentifier(sectorIdentifier);
+		return Response.noContent().build();
 
 	}
 

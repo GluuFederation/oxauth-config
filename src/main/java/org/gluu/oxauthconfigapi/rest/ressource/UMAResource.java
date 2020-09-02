@@ -8,6 +8,7 @@ import java.util.List;
 
 import javax.inject.Inject;
 import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
@@ -26,7 +27,6 @@ import org.gluu.oxauthconfigapi.filters.ProtectedApi;
 import org.gluu.oxauthconfigapi.util.ApiConstants;
 import org.gluu.oxauthconfigapi.util.AttributeNames;
 import org.gluu.oxtrust.service.uma.ResourceSetService;
-import org.slf4j.Logger;
 
 /**
  * @author Mougang T.Gasmyr
@@ -38,9 +38,10 @@ import org.slf4j.Logger;
 @Produces(MediaType.APPLICATION_JSON)
 public class UMAResource extends BaseResource {
 
-	@Inject
-	private Logger logger;
-
+	/**
+	 * 
+	 */
+	private static final String UMA_RESOURCE = "Uma resource";
 	@Inject
 	private ResourceSetService umaResourcesService;
 
@@ -48,100 +49,64 @@ public class UMAResource extends BaseResource {
 	@ProtectedApi(scopes = { READ_ACCESS })
 	public Response fetchUmaResources(@DefaultValue("50") @QueryParam(value = ApiConstants.LIMIT) int limit,
 			@DefaultValue("") @QueryParam(value = ApiConstants.PATTERN) String pattern) {
-		try {
-			List<UmaResource> resources = new ArrayList<UmaResource>();
-			if (!pattern.isEmpty() && pattern.length() >= 2) {
-				resources = umaResourcesService.findResources(pattern, 1000);
-			} else {
-				resources = umaResourcesService.getAllResources(limit);
-			}
-			return Response.ok(resources).build();
-		} catch (Exception e) {
-			logger.error("Faild to fetch uma resources!");
-			return getInternalServerError(e);
+		List<UmaResource> resources = new ArrayList<UmaResource>();
+		if (!pattern.isEmpty() && pattern.length() >= 2) {
+			resources = umaResourcesService.findResources(pattern, 1000);
+		} else {
+			resources = umaResourcesService.getAllResources(limit);
 		}
+		return Response.ok(resources).build();
 	}
 
 	@GET
 	@Path(ApiConstants.INUM_PATH)
 	@ProtectedApi(scopes = { READ_ACCESS })
-	public Response getUmaResourceByImun(@PathParam(value = ApiConstants.INUM) String inum) {
-		try {
-			String resourceDn = umaResourcesService.getDnForResource(inum);
-			UmaResource resource = umaResourcesService.getResourceByDn(resourceDn);
-			if (resource == null) {
-				return getResourceNotFoundError();
-			}
-			return Response.ok(resource).build();
-		} catch (Exception e) {
-			logger.error("Failed to retrieve uma resource", e);
-			return getInternalServerError(e);
-		}
+	public Response getUmaResourceByImun(@PathParam(value = ApiConstants.INUM) @NotNull String inum) {
+		String resourceDn = umaResourcesService.getDnForResource(inum);
+		UmaResource resource = umaResourcesService.getResourceByDn(resourceDn);
+		checkResourceNotNull(resource, UMA_RESOURCE);
+		return Response.ok(resource).build();
 	}
 
 	@POST
 	@ProtectedApi(scopes = { WRITE_ACCESS })
 	public Response createUmaResource(@Valid UmaResource umaResource) {
-		try {
-			if (umaResource.getName() == null) {
-				return getMissingAttributeError(AttributeNames.NAME);
-			}
-			if (umaResource.getDescription() == null) {
-				return getMissingAttributeError(AttributeNames.DESCRIPTION);
-			}
-			String inum = umaResourcesService.generateInumForNewResource();
-			umaResource.setInum(inum);
-			umaResource.setDn(umaResourcesService.getDnForResource(inum));
-			umaResourcesService.addResource(umaResource);
-			String dn = umaResourcesService.getDnForResource(inum);
-			UmaResource result = umaResourcesService.getResourceByDn(dn);
-			return Response.status(Response.Status.CREATED).entity(result).build();
-		} catch (Exception e) {
-			logger.error("Failed to create uma resource", e);
-			return getInternalServerError(e);
-		}
+		checkNotNull(umaResource.getName(), AttributeNames.NAME);
+		checkNotNull(umaResource.getDescription(), AttributeNames.DESCRIPTION);
+		String inum = umaResourcesService.generateInumForNewResource();
+		umaResource.setInum(inum);
+		umaResource.setDn(umaResourcesService.getDnForResource(inum));
+		umaResourcesService.addResource(umaResource);
+		String dn = umaResourcesService.getDnForResource(inum);
+		UmaResource result = umaResourcesService.getResourceByDn(dn);
+		return Response.status(Response.Status.CREATED).entity(result).build();
 
 	}
 
 	@PUT
 	@ProtectedApi(scopes = { WRITE_ACCESS })
 	public Response updateUmaResource(@Valid UmaResource resource) {
-		try {
-			String inum = resource.getInum();
-			if (inum == null) {
-				return getResourceNotFoundError();
-			}
-			String dn = umaResourcesService.getDnForResource(inum);
-			UmaResource existingResource = umaResourcesService.getResourceByDn(dn);
-			if (existingResource == null) {
-				return getResourceNotFoundError();
-			}
-			resource.setInum(existingResource.getInum());
-			resource.setDn(umaResourcesService.getDnForResource(inum));
-			umaResourcesService.updateResource(resource);
-			UmaResource result = umaResourcesService.getResourceByDn(dn);
-			return Response.ok(result).build();
-		} catch (Exception e) {
-			logger.error("Failed to update uma scope", e);
-			return getInternalServerError(e);
-		}
+		String inum = resource.getInum();
+		checkNotNull(inum, AttributeNames.INUM);
+		String dn = umaResourcesService.getDnForResource(inum);
+		UmaResource existingResource = umaResourcesService.getResourceByDn(dn);
+		checkResourceNotNull(existingResource, UMA_RESOURCE);
+		resource.setInum(existingResource.getInum());
+		resource.setDn(umaResourcesService.getDnForResource(inum));
+		umaResourcesService.updateResource(resource);
+		UmaResource result = umaResourcesService.getResourceByDn(dn);
+		return Response.ok(result).build();
 	}
 
 	@DELETE
 	@Path(ApiConstants.INUM_PATH)
 	@ProtectedApi(scopes = { READ_ACCESS })
-	public Response deleteUmaResource(@PathParam(value = ApiConstants.INUM) String inum) {
-		try {
-			String dn = umaResourcesService.getDnForResource(inum);
-			UmaResource umaResource = umaResourcesService.getResourceByDn(dn);
-			if (umaResource == null) {
-				return getResourceNotFoundError();
-			}
-			umaResourcesService.removeResource(umaResource);
-			return Response.status(Response.Status.NO_CONTENT).build();
-		} catch (Exception e) {
-			return getInternalServerError(e);
-		}
+	public Response deleteUmaResource(@PathParam(value = ApiConstants.INUM) @NotNull String inum) {
+		String dn = umaResourcesService.getDnForResource(inum);
+		UmaResource umaResource = umaResourcesService.getResourceByDn(dn);
+		checkResourceNotNull(umaResource, UMA_RESOURCE);
+		umaResourcesService.removeResource(umaResource);
+		return Response.status(Response.Status.NO_CONTENT).build();
 	}
 
 }

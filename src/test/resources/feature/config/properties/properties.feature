@@ -3,6 +3,7 @@ Feature: Verify Auth configuration endpoint
   	Background:
   	* def mainUrl = authConfigurationUrl
 
+	
  	@auth-config-get
   	Scenario: Retrieve Auth configuration
     Given url  mainUrl
@@ -12,6 +13,7 @@ Feature: Verify Auth configuration endpoint
     And print response
     And assert response.length != null
     
+    @ignore
     @auth-config-patch
   	Scenario: Patch loggingLevel Auth configuration
   	Given url  mainUrl

@@ -19,8 +19,10 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriInfo;
 
 import org.gluu.oxauth.model.common.ScopeType;
 import org.gluu.oxauthconfigapi.filters.ProtectedApi;
@@ -39,120 +41,91 @@ import org.slf4j.Logger;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class OIDScopeResource extends BaseResource {
+	/**
+	 * 
+	 */
+	private static final String OPENID_SCOPE = "openid connect scope";
+
 	@Inject
 	Logger logger;
 
 	@Inject
 	ScopeService scopeService;
 
+	@Context
+	UriInfo uriInfo;
+
 	@GET
 	@ProtectedApi(scopes = { READ_ACCESS })
 	public Response getOpenIdConnectScopes(@DefaultValue("50") @QueryParam(value = ApiConstants.LIMIT) int limit,
 			@DefaultValue("") @QueryParam(value = ApiConstants.PATTERN) String pattern) {
-		try {
-			List<Scope> scopes = new ArrayList<Scope>();
-			if (!pattern.isEmpty() && pattern.length() >= 2) {
-				scopes = scopeService.searchScopes(pattern, limit);
-			} else {
-				scopes = scopeService.getAllScopesList(limit);
-			}
-			return Response.ok(scopes).build();
-		} catch (Exception ex) {
-			logger.error("Failed to fetch openid connects scopes", ex);
-			return getInternalServerError(ex);
+		List<Scope> scopes = new ArrayList<Scope>();
+		if (!pattern.isEmpty() && pattern.length() >= 2) {
+			scopes = scopeService.searchScopes(pattern, limit);
+		} else {
+			scopes = scopeService.getAllScopesList(limit);
 		}
+		return Response.ok(scopes).build();
 	}
 
 	@GET
 	@ProtectedApi(scopes = { READ_ACCESS })
 	@Path(ApiConstants.INUM_PATH)
-	public Response getOpenIdScopeByInum(@PathParam(ApiConstants.INUM) String inum) {
-		try {
-			Scope scope = scopeService.getScopeByInum(inum);
-			if (scope == null) {
-				return getResourceNotFoundError();
-			}
-			return Response.ok(scope).build();
-		} catch (Exception ex) {
-			logger.error("Failed to fetch  OpenId Connect Scope " + inum, ex);
-			return getInternalServerError(ex);
-		}
+	public Response getOpenIdScopeByInum(@NotNull @PathParam(ApiConstants.INUM) String inum) throws Exception {
+		Scope scope = scopeService.getScopeByInum(inum);
+		checkResourceNotNull(scope, OPENID_SCOPE);
+		return Response.ok(scope).build();
 	}
 
 	@POST
 	@ProtectedApi(scopes = { WRITE_ACCESS })
-	public Response createOpenidScope(@Valid Scope scope) {
-		try {
-			if (scope.getId() == null) {
-				return getMissingAttributeError(AttributeNames.ID);
-			}
-			if (scope.getDisplayName() == null) {
-				scope.setDisplayName(scope.getId());
-			}
-
-			String inum = scopeService.generateInumForNewScope();
-			scope.setInum(inum);
-			scope.setDn(scopeService.getDnForScope(inum));
-			if (scope.getScopeType() == null) {
-				scope.setScopeType(ScopeType.OAUTH);
-			}
-			if (ScopeType.UMA.getValue().equalsIgnoreCase(scope.getScopeType().getValue())) {
-				scope.setScopeType(ScopeType.OAUTH);
-			}
-			scopeService.addScope(scope);
-			Scope result = scopeService.getScopeByInum(inum);
-			return Response.status(Response.Status.CREATED).entity(result).build();
-		} catch (Exception e) {
-			logger.error("Failed to create Connect scope", e);
-			return getInternalServerError(e);
+	public Response createOpenidScope(@Valid Scope scope) throws Exception {
+		checkNotNull(scope.getId(), AttributeNames.ID);
+		if (scope.getDisplayName() == null) {
+			scope.setDisplayName(scope.getId());
 		}
-
+		String inum = scopeService.generateInumForNewScope();
+		scope.setInum(inum);
+		scope.setDn(scopeService.getDnForScope(inum));
+		if (scope.getScopeType() == null) {
+			scope.setScopeType(ScopeType.OAUTH);
+		}
+		if (ScopeType.UMA.getValue().equalsIgnoreCase(scope.getScopeType().getValue())) {
+			scope.setScopeType(ScopeType.OAUTH);
+		}
+		scopeService.addScope(scope);
+		Scope result = scopeService.getScopeByInum(inum);
+		return Response.status(Response.Status.CREATED).entity(result).build();
 	}
 
 	@PUT
 	@ProtectedApi(scopes = { WRITE_ACCESS })
-	public Response updateOpenIdConnectScope(@Valid Scope scope) {
-		try {
-			String inum = scope.getInum();
-			if (inum == null) {
-				return getResourceNotFoundError();
-			}
-			Scope existingScope = scopeService.getScopeByInum(inum);
-			if (existingScope == null) {
-				return getResourceNotFoundError();
-			}
-			if (scope.getScopeType() == null) {
-				scope.setScopeType(ScopeType.OAUTH);
-			}
-			if (ScopeType.UMA.getValue().equalsIgnoreCase(scope.getScopeType().getValue())) {
-				scope.setScopeType(ScopeType.OAUTH);
-			}
-			scope.setInum(existingScope.getInum());
-			scope.setBaseDn(scopeService.getDnForScope(inum));
-			scopeService.updateScope(scope);
-			Scope result = scopeService.getScopeByInum(inum);
-			return Response.ok(result).build();
-		} catch (Exception e) {
-			return getInternalServerError(e);
+	public Response updateOpenIdConnectScope(@Valid Scope scope) throws Exception {
+		String inum = scope.getInum();
+		checkNotNull(inum, OPENID_SCOPE);
+		Scope existingScope = scopeService.getScopeByInum(inum);
+		checkResourceNotNull(existingScope, OPENID_SCOPE);
+		if (scope.getScopeType() == null) {
+			scope.setScopeType(ScopeType.OAUTH);
 		}
+		if (ScopeType.UMA.getValue().equalsIgnoreCase(scope.getScopeType().getValue())) {
+			scope.setScopeType(ScopeType.OAUTH);
+		}
+		scope.setInum(existingScope.getInum());
+		scope.setBaseDn(scopeService.getDnForScope(inum));
+		scopeService.updateScope(scope);
+		Scope result = scopeService.getScopeByInum(inum);
+		return Response.ok(result).build();
 	}
 
 	@DELETE
 	@Path(ApiConstants.INUM_PATH)
 	@ProtectedApi(scopes = { WRITE_ACCESS })
-	public Response deleteScope(@PathParam(ApiConstants.INUM) @NotNull String inum) {
-		try {
-			Scope scope = scopeService.getScopeByInum(inum);
-			if (scope != null) {
-				scopeService.removeScope(scope);
-				return Response.noContent().build();
-			} else {
-				return getResourceNotFoundError();
-			}
-		} catch (Exception ex) {
-			logger.error("Failed to delete OpenId Connect scope", ex);
-			return getInternalServerError(ex);
-		}
+	public Response deleteScope(@PathParam(ApiConstants.INUM) @NotNull String inum) throws Exception {
+		Scope scope = scopeService.getScopeByInum(inum);
+		checkResourceNotNull(scope, OPENID_SCOPE);
+		scopeService.removeScope(scope);
+		return Response.noContent().build();
 	}
 
 }

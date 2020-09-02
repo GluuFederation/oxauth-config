@@ -8,6 +8,8 @@ import org.gluu.oxtrust.service.JsonConfigurationService;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 
+import java.io.IOException;
+
 import javax.inject.Inject;
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.*;
@@ -27,41 +29,34 @@ public class AuthConfigurationResource extends BaseResource {
 
 	@GET
     @ProtectedApi(scopes = {READ_ACCESS})
-	public Response getAppConfiguration() {
-		try {
-			AppConfiguration appConfiguration = this.jsonConfigurationService.getOxauthAppConfiguration();
-			JSONObject json = new JSONObject(appConfiguration);
-			return Response.ok(json).build();
-		} catch (Exception ex) {
-			log.error("Failed to retrieve Auth application configuration.", ex);
-			return getInternalServerError(ex);
-		}
+	public Response getAppConfiguration()  throws IOException {
+		AppConfiguration appConfiguration = this.jsonConfigurationService.getOxauthAppConfiguration();
+		JSONObject json = new JSONObject(appConfiguration);
+		return Response.ok(json).build();
+		
 	}
 
     @PATCH
     @Consumes(MediaType.APPLICATION_JSON_PATCH_JSON)
     @ProtectedApi(scopes = {WRITE_ACCESS})
-    public Response patchAppConfigurationProperty(@NotNull String requestString) {
+    public Response patchAppConfigurationProperty(@NotNull String requestString)  throws Exception {
         log.trace("=======================================================================");
         log.trace("\n\n requestString = " + requestString + "\n\n");
-        try {
-            AppConfiguration appConfiguration = this.jsonConfigurationService.getOxauthAppConfiguration();
+        
+        AppConfiguration appConfiguration = this.jsonConfigurationService.getOxauthAppConfiguration();
 
-            final JSONObject jsonBefore = new JSONObject(appConfiguration);
-            log.trace("\n\n appConfiguration_before = " + jsonBefore + "\n\n");
+        final JSONObject jsonBefore = new JSONObject(appConfiguration);
+        log.trace("\n\n appConfiguration_before = " + jsonBefore + "\n\n");
 
-            appConfiguration = Jackson.applyPatch(requestString, appConfiguration);
+        appConfiguration = Jackson.applyPatch(requestString, appConfiguration);
 
-            JSONObject jsonAfter = new JSONObject(appConfiguration);
-            log.trace("\n\n appConfiguration_after = " + jsonAfter + "\n\n");
-            log.trace("=======================================================================");
+        JSONObject jsonAfter = new JSONObject(appConfiguration);
+        log.trace("\n\n appConfiguration_after = " + jsonAfter + "\n\n");
+        log.trace("=======================================================================");
 
-            jsonConfigurationService.saveOxAuthAppConfiguration(appConfiguration);
+        jsonConfigurationService.saveOxAuthAppConfiguration(appConfiguration);
 
-            return Response.ok(jsonAfter).build();
-        } catch (Exception ex) {
-            log.error("Failed to PATCH configuration.", ex);
-            return getInternalServerError(ex);
-        }
+        return Response.ok(jsonAfter).build();
+        
     }
 }

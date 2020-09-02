@@ -40,6 +40,11 @@ import org.slf4j.Logger;
 @Consumes(MediaType.APPLICATION_JSON)
 public class PersonAuthResource extends BaseResource {
 
+	/**
+	 * 
+	 */
+	private static final String CUSTOM_SCRIPT = "custom script";
+
 	@Inject
 	Logger logger;
 
@@ -50,105 +55,63 @@ public class PersonAuthResource extends BaseResource {
 	@ProtectedApi(scopes = { READ_ACCESS })
 	public Response getAttributes(@DefaultValue("50") @QueryParam(value = ApiConstants.LIMIT) int limit,
 			@DefaultValue("") @QueryParam(value = ApiConstants.PATTERN) String pattern) {
-		try {
-			List<CustomScript> customScripts = new ArrayList<CustomScript>();
-			if (!pattern.isEmpty() && pattern.length() >= 2) {
-				customScripts = customScriptService.findCustomAuthScripts(pattern, limit);
-			} else {
-				customScripts = customScriptService.findCustomAuthScripts(limit);
-			}
-			return Response.ok(customScripts).build();
-		} catch (Exception e) {
-			logger.error("Failed to fetch attributes " + e);
-			return getInternalServerError(e);
+		List<CustomScript> customScripts = new ArrayList<CustomScript>();
+		if (!pattern.isEmpty() && pattern.length() >= 2) {
+			customScripts = customScriptService.findCustomAuthScripts(pattern, limit);
+		} else {
+			customScripts = customScriptService.findCustomAuthScripts(limit);
 		}
+		return Response.ok(customScripts).build();
 	}
 
 	@GET
 	@ProtectedApi(scopes = { READ_ACCESS })
 	@Path(ApiConstants.INUM_PATH)
-	public Response getAuthScriptByInum(@PathParam(ApiConstants.INUM) String inum) {
-		try {
-			CustomScript attribute = customScriptService.getScriptByInum(inum);
-			if (attribute == null) {
-				return getResourceNotFoundError();
-			}
-			return Response.ok(attribute).build();
-		} catch (Exception ex) {
-			logger.error("Failed to fetch  Person Authentication Script by inum " + inum, ex);
-			return getInternalServerError(ex);
-		}
+	public Response getAuthScriptByInum(@PathParam(ApiConstants.INUM) @NotNull String inum) {
+		CustomScript script = customScriptService.getScriptByInum(inum);
+		checkResourceNotNull(script, CUSTOM_SCRIPT);
+		return Response.ok(script).build();
 	}
 
 	@POST
 	@ProtectedApi(scopes = { WRITE_ACCESS })
 	public Response createPersonScript(@Valid CustomScript customScript) {
-		try {
-			if (customScript.getName() == null) {
-				return getMissingAttributeError(AttributeNames.NAME);
-			}
-			if (customScript.getDescription() == null) {
-				return getMissingAttributeError(AttributeNames.DESCRIPTION);
-			}
-			String inum = INumGenerator.generate(2);
-			customScript.setInum(inum);
-			customScript.setDn(customScriptService.buildDn(inum));
-			customScript.setScriptType(CustomScriptType.PERSON_AUTHENTICATION);
-			customScriptService.add(customScript);
-			CustomScript result = customScriptService.getScriptByInum(inum);
-			return Response.status(Response.Status.CREATED).entity(result).build();
-		} catch (Exception e) {
-			logger.error("Failed to create person script", e);
-			return getInternalServerError(e);
-		}
-
+		checkNotNull(customScript.getName(), AttributeNames.NAME);
+		checkNotNull(customScript.getDescription(), AttributeNames.DESCRIPTION);
+		String inum = INumGenerator.generate(2);
+		customScript.setInum(inum);
+		customScript.setDn(customScriptService.buildDn(inum));
+		customScript.setScriptType(CustomScriptType.PERSON_AUTHENTICATION);
+		customScriptService.add(customScript);
+		CustomScript result = customScriptService.getScriptByInum(inum);
+		return Response.status(Response.Status.CREATED).entity(result).build();
 	}
 
 	@PUT
 	@ProtectedApi(scopes = { WRITE_ACCESS })
 	public Response updatePersonScript(@Valid CustomScript customScript) {
-		try {
-			String inum = customScript.getInum();
-			if (inum == null) {
-				return getResourceNotFoundError();
-			}
-			if (customScript.getName() == null) {
-				return getMissingAttributeError(AttributeNames.NAME);
-			}
-			if (customScript.getDescription() == null) {
-				return getMissingAttributeError(AttributeNames.DESCRIPTION);
-			}
-			CustomScript existingScript = customScriptService.getScriptByInum(inum);
-			if (existingScript == null) {
-				return getResourceNotFoundError();
-			}
-			customScript.setInum(existingScript.getInum());
-			customScript.setDn(existingScript.getDn());
-			customScript.setBaseDn(existingScript.getBaseDn());
-			customScript.setScriptType(CustomScriptType.PERSON_AUTHENTICATION);
-			customScriptService.update(customScript);
-			CustomScript result = customScriptService.getScriptByInum(inum);
-			return Response.ok(result).build();
-		} catch (Exception e) {
-			return getInternalServerError(e);
-		}
+		String inum = customScript.getInum();
+		checkResourceNotNull(inum, CUSTOM_SCRIPT);
+		checkNotNull(customScript.getName(), AttributeNames.NAME);
+		checkNotNull(customScript.getDescription(), AttributeNames.DESCRIPTION);
+		CustomScript existingScript = customScriptService.getScriptByInum(inum);
+		checkResourceNotNull(existingScript, CUSTOM_SCRIPT);
+		customScript.setInum(existingScript.getInum());
+		customScript.setDn(existingScript.getDn());
+		customScript.setBaseDn(existingScript.getBaseDn());
+		customScript.setScriptType(CustomScriptType.PERSON_AUTHENTICATION);
+		customScriptService.update(customScript);
+		CustomScript result = customScriptService.getScriptByInum(inum);
+		return Response.ok(result).build();
 	}
 
 	@DELETE
 	@Path(ApiConstants.INUM_PATH)
 	@ProtectedApi(scopes = { WRITE_ACCESS })
 	public Response deletePersonScript(@PathParam(ApiConstants.INUM) @NotNull String inum) {
-		try {
-			CustomScript customScript = customScriptService.getScriptByInum(inum);
-			if (customScript != null) {
-				customScriptService.remove(customScript);
-				return Response.noContent().build();
-			} else {
-				return getResourceNotFoundError();
-			}
-		} catch (Exception ex) {
-			logger.error("Failed to delete person script", ex);
-			return getInternalServerError(ex);
-		}
+		CustomScript customScript = customScriptService.getScriptByInum(inum);
+		checkResourceNotNull(customScript, CUSTOM_SCRIPT);
+		customScriptService.remove(customScript);
+		return Response.noContent().build();
 	}
 }

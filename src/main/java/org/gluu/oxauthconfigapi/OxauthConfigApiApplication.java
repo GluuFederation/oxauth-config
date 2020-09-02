@@ -77,9 +77,8 @@ public class OxauthConfigApiApplication {
 				.getPersistenceEntryManagerFactory(configurationFactory.getPersistenceConfiguration());
 		PersistenceEntryManager persistenceEntryManager = persistenceEntryManagerFactory
 				.createEntryManager(connectionProperties);
-		logger.debug("Created {}: {} with operation service: {}",
-				new Object[] { ApplicationFactory.PERSISTENCE_ENTRY_MANAGER_NAME, persistenceEntryManager,
-						persistenceEntryManager.getOperationService() });
+		logger.debug("Created {}: {} with operation service: {}", ApplicationFactory.PERSISTENCE_ENTRY_MANAGER_NAME,
+                persistenceEntryManager, persistenceEntryManager.getOperationService());
 		return persistenceEntryManager;
 	}
 

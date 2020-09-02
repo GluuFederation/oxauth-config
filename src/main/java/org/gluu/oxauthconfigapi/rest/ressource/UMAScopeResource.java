@@ -8,6 +8,7 @@ import java.util.List;
 
 import javax.inject.Inject;
 import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
@@ -21,11 +22,6 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-import org.eclipse.microprofile.openapi.annotations.Operation;
-import org.eclipse.microprofile.openapi.annotations.media.Content;
-import org.eclipse.microprofile.openapi.annotations.media.Schema;
-import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
-import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.gluu.oxauth.model.common.ScopeType;
 import org.gluu.oxauthconfigapi.filters.ProtectedApi;
 import org.gluu.oxauthconfigapi.util.ApiConstants;
@@ -44,6 +40,11 @@ import org.slf4j.Logger;
 @Consumes(MediaType.APPLICATION_JSON)
 public class UMAScopeResource extends BaseResource {
 
+	/**
+	 * 
+	 */
+	private static final String UMA_SCOPE = "Uma scope";
+
 	@Inject
 	Logger logger;
 
@@ -54,115 +55,60 @@ public class UMAScopeResource extends BaseResource {
 	@ProtectedApi(scopes = { READ_ACCESS })
 	public Response getAllUmaScopes(@DefaultValue("50") @QueryParam(value = ApiConstants.LIMIT) int limit,
 			@DefaultValue("") @QueryParam(value = ApiConstants.PATTERN) String pattern) {
-		try {
-			List<Scope> scopes = new ArrayList<Scope>();
-			if (!pattern.isEmpty()) {
-				scopes = umaScopeService.findUmaScopes(pattern, limit);
-			} else {
-				scopes = umaScopeService.getAllUmaScopes(limit);
-			}
-			return Response.ok(scopes).build();
-		} catch (Exception e) {
-			logger.info("Failed to fetch Uma Scopes");
-			return getInternalServerError(e);
+		List<Scope> scopes = new ArrayList<Scope>();
+		if (!pattern.isEmpty()) {
+			scopes = umaScopeService.findUmaScopes(pattern, limit);
+		} else {
+			scopes = umaScopeService.getAllUmaScopes(limit);
 		}
+		return Response.ok(scopes).build();
 	}
 
 	@GET
 	@Path(ApiConstants.INUM_PATH)
-	@APIResponses(value = {
-			@APIResponse(responseCode = "200", content = @Content(schema = @Schema(implementation = Scope.class, required = false))),
-			@APIResponse(responseCode = "404", description = "Resource Not Found"),
-			@APIResponse(responseCode = "500", description = "Server error") })
 	@ProtectedApi(scopes = { READ_ACCESS })
-	public Response getUmaScopeByImun(@PathParam(value = ApiConstants.INUM) String inum) {
-		try {
-			Scope scope = umaScopeService.getUmaScopeByInum(inum);
-			if (scope == null) {
-				return getResourceNotFoundError();
-			}
-			return Response.ok(scope).build();
-		} catch (Exception e) {
-			logger.error("Failed to retrieve uma scope", e);
-			return getInternalServerError(e);
-		}
+	public Response getUmaScopeByImun(@PathParam(value = ApiConstants.INUM) @NotNull String inum) {
+		Scope scope = umaScopeService.getUmaScopeByInum(inum);
+		checkResourceNotNull(scope, UMA_SCOPE);
+		return Response.ok(scope).build();
 	}
 
 	@POST
-	@Operation(summary = "Create Uma Scope")
-	@APIResponses(value = {
-			@APIResponse(responseCode = "201", content = @Content(schema = @Schema(implementation = Scope.class, required = true))),
-			@APIResponse(responseCode = "500", description = "Internal Server Error") })
 	@ProtectedApi(scopes = { WRITE_ACCESS })
 	public Response createUmaScope(@Valid Scope scope) {
-		try {
-			if (scope.getId() == null) {
-				return getMissingAttributeError(AttributeNames.ID);
-			}
-			if (scope.getDisplayName() == null) {
-				return getMissingAttributeError(AttributeNames.DISPLAY_NAME);
-			}
-			String inum = umaScopeService.generateInumForNewScope();
-			scope.setInum(inum);
-			scope.setDn(umaScopeService.getDnForScope(inum));
-			scope.setScopeType(ScopeType.UMA);
-			umaScopeService.addUmaScope(scope);
-			Scope result = umaScopeService.getUmaScopeByInum(inum);
-			return Response.status(Response.Status.CREATED).entity(result).build();
-		} catch (Exception e) {
-			logger.error("Failed to create uma scope", e);
-			return getInternalServerError(e);
-		}
-
+		checkNotNull(scope.getId(), AttributeNames.ID);
+		checkNotNull(scope.getDisplayName(), AttributeNames.DISPLAY_NAME);
+		String inum = umaScopeService.generateInumForNewScope();
+		scope.setInum(inum);
+		scope.setDn(umaScopeService.getDnForScope(inum));
+		scope.setScopeType(ScopeType.UMA);
+		umaScopeService.addUmaScope(scope);
+		Scope result = umaScopeService.getUmaScopeByInum(inum);
+		return Response.status(Response.Status.CREATED).entity(result).build();
 	}
 
 	@PUT
-	@Operation(summary = "Update existing Uma Scope")
-	@APIResponses(value = {
-			@APIResponse(responseCode = "200", content = @Content(schema = @Schema(implementation = Scope.class)), description = "Success"),
-			@APIResponse(responseCode = "400", description = "Bad Request"),
-			@APIResponse(responseCode = "404", description = "Not Found"),
-			@APIResponse(responseCode = "500", description = "Server Error") })
 	@ProtectedApi(scopes = { WRITE_ACCESS })
 	public Response updateUmaScope(@Valid Scope scope) {
-		try {
-			String inum = scope.getInum();
-			if (inum == null) {
-				return getResourceNotFoundError();
-			}
-			Scope existingScope = umaScopeService.getUmaScopeByInum(inum);
-			if (existingScope == null) {
-				return getResourceNotFoundError();
-			}
-			scope.setInum(existingScope.getInum());
-			scope.setBaseDn(umaScopeService.getDnForScope(inum));
-			scope.setScopeType(ScopeType.UMA);
-			umaScopeService.updateUmaScope(scope);
-			Scope result = umaScopeService.getUmaScopeByInum(inum);
-			return Response.ok(result).build();
-		} catch (Exception e) {
-			logger.error("Failed to update uma scope", e);
-			return getInternalServerError(e);
-		}
+		String inum = scope.getInum();
+		checkNotNull(inum, AttributeNames.INUM);
+		Scope existingScope = umaScopeService.getUmaScopeByInum(inum);
+		checkResourceNotNull(existingScope, UMA_SCOPE);
+		scope.setInum(existingScope.getInum());
+		scope.setBaseDn(umaScopeService.getDnForScope(inum));
+		scope.setScopeType(ScopeType.UMA);
+		umaScopeService.updateUmaScope(scope);
+		Scope result = umaScopeService.getUmaScopeByInum(inum);
+		return Response.ok(result).build();
 	}
 
 	@DELETE
 	@Path(ApiConstants.INUM_PATH)
-	@APIResponses(value = {
-			@APIResponse(responseCode = "201", content = @Content(schema = @Schema(implementation = Scope.class, required = false))),
-			@APIResponse(responseCode = "404", description = "Resource Not Found"),
-			@APIResponse(responseCode = "500", description = "Server error") })
 	@ProtectedApi(scopes = { READ_ACCESS })
-	public Response deleteUmaScope(@PathParam(value = ApiConstants.INUM) String inum) {
-		try {
-			Scope scope = umaScopeService.getUmaScopeByInum(inum);
-			if (scope == null) {
-				return getResourceNotFoundError();
-			}
-			umaScopeService.removeUmaScope(scope);
-			return Response.status(Response.Status.NO_CONTENT).build();
-		} catch (Exception e) {
-			return getInternalServerError(e);
-		}
+	public Response deleteUmaScope(@PathParam(value = ApiConstants.INUM) @NotNull String inum) {
+		Scope scope = umaScopeService.getUmaScopeByInum(inum);
+		checkResourceNotNull(scope, UMA_SCOPE);
+		umaScopeService.removeUmaScope(scope);
+		return Response.status(Response.Status.NO_CONTENT).build();
 	}
 }
