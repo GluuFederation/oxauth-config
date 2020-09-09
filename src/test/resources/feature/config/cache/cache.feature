@@ -12,6 +12,25 @@ Feature: Verify Cache configuration endpoint
     And print response
     And assert response.length != null
     
+    @cache-patch
+  	Scenario: Patch cacheProviderType configuration
+  	Given url  mainUrl
+    And  header Authorization = 'Bearer ' + accessToken
+    When method GET
+    Then status 200
+    And print response
+    And assert response.length != null
+    And print response.cacheProviderType
+  	Given url  mainUrl
+    And  header Authorization = 'Bearer ' + accessToken
+    And header Content-Type = 'application/json-patch+json'
+    And header Accept = 'application/json'
+    And request "[ {\"op\":\"replace\", \"path\": \"/cacheProviderType\", \"value\":"+response.cacheProviderType+" } ]"
+	Then print request
+    When method PATCH
+    Then status 200
+    And print response
+    
     @ignore
     @cache-put-CacheProviderType
   	Scenario: Update CacheProviderType configuration
