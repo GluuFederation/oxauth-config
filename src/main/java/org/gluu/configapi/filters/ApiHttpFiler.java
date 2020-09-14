@@ -6,8 +6,12 @@ package org.gluu.configapi.filters;
 import java.io.IOException;
 
 import javax.inject.Inject;
-import javax.ws.rs.container.ContainerRequestContext;
-import javax.ws.rs.container.ContainerRequestFilter;
+import javax.servlet.Filter;
+import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.annotation.WebFilter;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.UriInfo;
 import javax.ws.rs.ext.Provider;
@@ -27,22 +31,11 @@ import org.slf4j.Logger;
  *
  */
 @Provider
-public class ConfigApiMetricFilter implements ContainerRequestFilter {
-
-    /**
-     * 
-     */
-    private static final String METER = "meter_";
-
-    /**
-     * 
-     */
-    private static final String COUNTER = "counter_";
-
-    /**
-     * 
-     */
-    private static final String TIMER = "timer_";
+@WebFilter(urlPatterns = "/*")
+public class ApiHttpFiler implements Filter {
+    private static final String METER = "meterr_";
+    private static final String COUNTER = "counterr_";
+    private static final String TIMER = "timerr_";
 
     @Inject
     Logger logger;
@@ -54,10 +47,15 @@ public class ConfigApiMetricFilter implements ContainerRequestFilter {
     @RegistryType(type = MetricRegistry.Type.APPLICATION)
     MetricRegistry registry;
 
-    public void filter(ContainerRequestContext requestContext) throws IOException {
+    public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain)
+            throws IOException, ServletException {
+        logger.info("##################################################");
         registry.counter(getMetaData(MetricType.COUNTER, COUNTER)).inc();
         Timer timer = registry.timer(getMetaData(MetricType.TIMER, TIMER));
         Meter meter = registry.meter(getMetaData(MetricType.METERED, METER));
+
+        chain.doFilter(req, res);
+
         timer.getCount();
         meter.mark();
     }
@@ -66,4 +64,5 @@ public class ConfigApiMetricFilter implements ContainerRequestFilter {
         return new MetadataBuilder().withName(prefix + info.getPath()).withDisplayName(prefix + info.getPath())
                 .withType(type).withUnit(MetricUnits.SECONDS).build();
     }
+
 }
