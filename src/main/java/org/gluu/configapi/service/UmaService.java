@@ -3,26 +3,17 @@ package org.gluu.configapi.service;
 import org.gluu.oxauth.client.uma.UmaClientFactory;
 import org.gluu.oxauth.client.uma.UmaMetadataService;
 import org.gluu.oxauth.client.uma.UmaRptIntrospectionService;
-import org.gluu.oxauth.model.uma.PermissionTicket;
-import org.gluu.oxauth.model.uma.RptIntrospectionResponse;
 import org.gluu.oxauth.model.uma.UmaMetadata;
 import org.gluu.exception.OxIntializationException;
 import org.gluu.util.StringHelper;
 import org.gluu.util.exception.ConfigurationException;
 import org.gluu.util.init.Initializable;
 
-import java.io.IOException;
 import java.io.Serializable;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import org.slf4j.Logger;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.config.CookieSpecs;
-import org.apache.http.client.config.RequestConfig;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.jboss.resteasy.client.jaxrs.ClientHttpEngine;
 
 @ApplicationScoped
