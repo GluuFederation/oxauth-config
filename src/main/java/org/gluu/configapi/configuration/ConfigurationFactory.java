@@ -2,7 +2,6 @@ package org.gluu.configapi.configuration;
 
 import io.quarkus.arc.AlternativePriority;
 import org.apache.commons.lang.StringUtils;
-import org.gluu.configapi.auth.*;
 import org.gluu.exception.ConfigurationException;
 import org.gluu.exception.OxIntializationException;
 import org.gluu.oxauth.model.config.Conf;
@@ -11,6 +10,8 @@ import org.gluu.oxauth.model.config.WebKeysConfiguration;
 import org.gluu.oxauth.model.configuration.AppConfiguration;
 import org.gluu.oxauth.model.error.ErrorResponseFactory;
 import org.gluu.oxauth.service.common.ApplicationFactory;
+import org.gluu.configapi.auth.*;
+import org.gluu.configapi.util.ApiConstants;
 import org.gluu.persist.PersistenceEntryManager;
 import org.gluu.persist.exception.BasePersistenceException;
 import org.gluu.persist.model.PersistenceConfiguration;
@@ -250,8 +251,6 @@ public class ConfigurationFactory {
             throw new OxIntializationException("Failed to create StringEncrypter instance", ex);
         }
     }
-
-   
    
     @Produces
     @ApplicationScoped
@@ -261,7 +260,7 @@ public class ConfigurationFactory {
             throw new ConfigurationException("API Protection Type not defined");
         }
         try {
-            if (ConfigurationFactory.getConfigAppPropertiesFile().equals("oauth2")) {
+            if (ApiConstants.PROTECTION_TYPE_OAUTH2.equals(ConfigurationFactory.getConfigAppPropertiesFile())) {
                 return authorizationServiceInstance.select(OpenIdAuthorizationService.class).get();
             } else
                 return authorizationServiceInstance.select(UmaAuthorizationService.class).get();

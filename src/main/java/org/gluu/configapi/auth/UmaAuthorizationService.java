@@ -40,7 +40,7 @@ public class UmaAuthorizationService extends AuthorizationService implements Ser
         }
         List<String> resourceScopes = getRequestedScopes(resourceInfo);
 
-        System.out.println("this.umaService.getUmaMetadata() = "+this.umaService.getUmaMetadata());
+        logger.debug("this.umaService.getUmaMetadata() = "+this.umaService.getUmaMetadata());
        //RptIntrospectionResponse rptIntrospectionResponse = this.umaService.ge
 
     }
