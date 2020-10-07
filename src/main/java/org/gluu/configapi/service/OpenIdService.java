@@ -1,6 +1,9 @@
 package org.gluu.configapi.service;
 
-import org.gluu.oxauth.client.service.*;
+import org.gluu.oxauth.client.service.IntrospectionService;
+import org.gluu.configapi.auth.AuthService;
+import org.gluu.oxauth.client.OpenIdConfigurationClient;
+import org.gluu.oxauth.client.OpenIdConfigurationResponse;
 import org.gluu.util.StringHelper;
 import org.gluu.util.exception.ConfigurationException;
 import org.gluu.util.init.Initializable;
@@ -19,6 +22,8 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.jboss.resteasy.client.jaxrs.ClientHttpEngine;
 import org.jboss.resteasy.client.jaxrs.engines.ApacheHttpClient43Engine;
+import org.eclipse.microprofile.rest.client.inject.RestClient;
+import org.gluu.configapi.auth.*;
 
 @ApplicationScoped
 public class OpenIdService extends Initializable implements Serializable {
@@ -34,7 +39,10 @@ public class OpenIdService extends Initializable implements Serializable {
     ConfigurationService configurationService;
 
     private ClientHttpEngine clientHttpEngine;
+    
+    //@Inject
     private IntrospectionService introspectionService;
+    //private AuthService introspectionService;
 
     public IntrospectionService getIntrospectionService() {
         init();
@@ -51,9 +59,10 @@ public class OpenIdService extends Initializable implements Serializable {
         }
     }
 
-    private void loadOpenIdConfiguration() throws IOException {     
+    private void loadOpenIdConfiguration() throws IOException {
+        System.out.println("OpenIdService::loadOpenIdConfiguration() - Entry");
         String openIdProvider = configurationService.find().getIssuer();
-
+        System.out.println("OpenIdService::loadOpenIdConfiguration() - openIdProvider = "+openIdProvider);
         if (StringHelper.isEmpty(openIdProvider)) {
             logger.error("OpenIdProvider Url is invalid");
             throw new ConfigurationException("OpenIdProvider Url is invalid");
@@ -61,13 +70,22 @@ public class OpenIdService extends Initializable implements Serializable {
         if (!openIdProvider.endsWith(WELL_KNOWN_OPENID_PATH)) {
             openIdProvider += WELL_KNOWN_OPENID_PATH;
         }
-        this.clientHttpEngine = createClientHttpEngine();
+        System.out.println("OpenIdService::loadOpenIdConfiguration() - openIdProvider_2 = "+openIdProvider);
+        //this.clientHttpEngine = createClientHttpEngine();
         // introspectionService =
         // ClientFactory.instance().createIntrospectionService(openIdProvider,clientHttpEngine);
         // //Error - org.jboss.resteasy.client.ClientExecutor
-        introspectionService = ClientFactory.instance().createIntrospectionService(openIdProvider);
-
+        //introspectionService = ClientFactory.instance().createIntrospectionService(openIdProvider);
+        //System.out.println("\n\n OpenIdService::loadOpenIdConfiguration() - introspectionService ="+introspectionService);
+        
+        //final OpenIdConfigurationClient openIdConfigurationClient = new OpenIdConfigurationClient(openIdProvider);
+        //System.out.println("\n\n OpenIdService::loadOpenIdConfiguration() - openIdConfigurationClient ="+openIdConfigurationClient);
+        //final OpenIdConfigurationResponse response = openIdConfigurationClient.execOpenIdConfiguration();
+       // this.introspectionService = AuthClientFactory.clientBuilder("https://pujavs4.2.gluu.server/oxauth/restv1/introspection",false);
+        this.introspectionService = AuthClientFactory.getIntrospectionService("https://pujavs4.2.gluu.server/oxauth/restv1/introspection",false);
+        System.out.println("\n\n OpenIdService::loadOpenIdConfiguration() - introspectionService ="+introspectionService);
         logger.info("Successfully loaded oxAuth configuration");
+       
 
     }
 
