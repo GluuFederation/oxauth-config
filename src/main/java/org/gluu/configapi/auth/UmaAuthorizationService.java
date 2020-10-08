@@ -174,13 +174,13 @@ public class UmaAuthorizationService extends AuthorizationService implements Ser
             throw new Exception("UMA JKS keystore path or password is empty");
         }
 
-        if (umaClientKeyStorePassword != null) {
+     /*   if (umaClientKeyStorePassword != null) {
             try {
                 umaClientKeyStorePassword = encryptionService.decrypt(umaClientKeyStorePassword);
             } catch (EncryptionException ex) {
                 logger.error("Failed to decrypt UmaClientKeyStorePassword password", ex);
             }
-        }
+        }*/
 
         try {
             this.umaPat = UmaClient.requestPat(umaMetadata.getTokenEndpoint(), umaClientKeyStoreFile,
