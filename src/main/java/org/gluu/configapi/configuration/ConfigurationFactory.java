@@ -9,6 +9,7 @@ import org.gluu.oxauth.model.config.StaticConfiguration;
 import org.gluu.oxauth.model.config.WebKeysConfiguration;
 import org.gluu.oxauth.model.configuration.AppConfiguration;
 import org.gluu.oxauth.model.error.ErrorResponseFactory;
+import org.gluu.oxauth.model.uma.persistence.UmaResource;
 import org.gluu.oxauth.service.common.ApplicationFactory;
 import org.gluu.configapi.auth.*;
 import org.gluu.configapi.util.ApiConstants;
@@ -16,6 +17,7 @@ import org.gluu.persist.PersistenceEntryManager;
 import org.gluu.persist.exception.BasePersistenceException;
 import org.gluu.persist.model.PersistenceConfiguration;
 import org.gluu.persist.service.PersistanceFactoryService;
+import org.gluu.search.filter.Filter;
 import org.gluu.util.StringHelper;
 import org.gluu.util.properties.FileConfiguration;
 import org.gluu.util.security.PropertiesDecrypter;
@@ -28,6 +30,7 @@ import javax.enterprise.inject.Produces;
 import javax.inject.Inject;
 import javax.inject.Named;
 import java.io.File;
+import java.util.List;
 import java.util.Properties;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -77,6 +80,15 @@ public class ConfigurationFactory {
     private String saltFilePath;
     
     @Inject
+    @ConfigProperty(name = "resource.name")
+    private static String API_RESOURCE_NAME;
+    private static String API_RESOURCE_ID;
+    
+    @Inject
+    @ConfigProperty(name = "client.id")
+    private static String API_CLIENT_ID;
+    
+    @Inject
     @ConfigProperty(name = "protection.type")
     private static String API_PROTECTION_TYPE;
     
@@ -107,6 +119,58 @@ public class ConfigurationFactory {
         return API_PROTECTION_TYPE;
     }
 
+    public static String getApiResourceName() {
+        return API_RESOURCE_NAME;
+    }
+
+    public static String getApiResourceId() {
+        return API_RESOURCE_ID;
+    }
+
+    public static String getApiClientId() {
+        return API_CLIENT_ID;
+    }
+
+    public static String getBaseDir() {
+        return BASE_DIR;
+    }
+
+    public static String getDir() {
+        return DIR;
+    }
+
+    public static String getBasePropertiesFile() {
+        return BASE_PROPERTIES_FILE;
+    }
+
+    public static String getSaltFileName() {
+        return SALT_FILE_NAME;
+    }
+
+    public Logger getLog() {
+        return log;
+    }
+
+    public Instance<PersistenceEntryManager> getPersistenceEntryManagerInstance() {
+        return persistenceEntryManagerInstance;
+    }
+
+    public PersistanceFactoryService getPersistanceFactoryService() {
+        return persistanceFactoryService;
+    }
+
+    public String getSaltFilePath() {
+        return saltFilePath;
+    }
+
+    public static String getAPI_PROTECTION_TYPE() {
+        return API_PROTECTION_TYPE;
+    }
+
+    public Instance<AuthorizationService> getAuthorizationServiceInstance() {
+        return authorizationServiceInstance;
+    }
+
     public void create() {
         loadBaseConfiguration();
         this.saltFilePath = confDir() + SALT_FILE_NAME;
@@ -121,6 +185,9 @@ public class ConfigurationFactory {
             log.info("Configuration loaded successfully.");
         }
 
+        //Initialize Config Api Resource
+        initConfigApiResource();
+        
         //Initialize API Protection Mechanism
         initApiProtectionService();
     }
@@ -265,9 +332,44 @@ public class ConfigurationFactory {
             } else
                 return authorizationServiceInstance.select(UmaAuthorizationService.class).get();
         } catch (Exception ex) {
+            log.error("Failed to create AuthorizationService instance", ex);
             throw new ConfigurationException("Failed to create AuthorizationService instance", ex);
         }
     }
-    
+
+    @Produces
+    @ApplicationScoped
+    @Named("configApiResource")
+    private UmaResource initConfigApiResource() {
+        log.error("ConfigurationFactory.getApiResourceName() = " + ConfigurationFactory.getApiResourceName());
+        if (StringHelper.isEmpty(ConfigurationFactory.getApiResourceName())) {
+            throw new ConfigurationException("Config API Resource not defined");
+        }
+        try {
+            String[] targetArray = new String[] { ConfigurationFactory.getApiResourceName() };
+            Filter oxIdFilter = Filter.createSubstringFilter("oxId", null, targetArray, null);
+
+            List<UmaResource> umaResourceList = persistenceEntryManagerInstance.get()
+                    .findEntries(getBaseDnForResource(), UmaResource.class, oxIdFilter);
+            if (umaResourceList == null || umaResourceList.isEmpty())
+                throw new ConfigurationException("Matching Config API Resource not found!");
+            UmaResource resource = umaResourceList.stream()
+                    .filter(x -> ConfigurationFactory.getApiResourceName().equals(x.getName())).findFirst()
+                    .orElse(null);
+            if (resource == null)
+                throw new ConfigurationException("Config API Resource not found!");
+
+            return resource;
+
+        } catch (Exception ex) {
+            log.error("Failed to load Config API Resource.", ex);
+            throw new ConfigurationException("Failed to load Config API Resource.", ex);
+        }
+    }
+
+    public String getBaseDnForResource() {
+        final String umaBaseDn = staticConf.getBaseDn().getUmaBase(); // "ou=uma,o=gluu"
+        return String.format("ou=resources,%s", umaBaseDn);
+    }
 
 }
