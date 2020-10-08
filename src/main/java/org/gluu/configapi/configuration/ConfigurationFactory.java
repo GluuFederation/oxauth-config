@@ -348,9 +348,11 @@ public class ConfigurationFactory {
         try {
             String[] targetArray = new String[] { ConfigurationFactory.getApiResourceName() };
             Filter oxIdFilter = Filter.createSubstringFilter("oxId", null, targetArray, null);
-
+            Filter displayNameFilter = Filter.createSubstringFilter(ApiConstants.DISPLAY_NAME, null, targetArray, null);
+            Filter searchFilter = Filter.createORFilter(oxIdFilter, displayNameFilter);
             List<UmaResource> umaResourceList = persistenceEntryManagerInstance.get()
-                    .findEntries(getBaseDnForResource(), UmaResource.class, oxIdFilter);
+                    .findEntries(getBaseDnForResource(), UmaResource.class,searchFilter);
+            log.error(" \n umaResourceList = " + umaResourceList+"\n");
             if (umaResourceList == null || umaResourceList.isEmpty())
                 throw new ConfigurationException("Matching Config API Resource not found!");
             UmaResource resource = umaResourceList.stream()
